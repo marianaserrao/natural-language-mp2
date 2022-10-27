@@ -1,9 +1,8 @@
 import numpy as np
 import re
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import GridSearchCV
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.metrics import classification_report
 
 data_path="data/train.txt"
 labels = ["Poor", "Unsatisfactory", "Good", "VeryGood", "Excellent"]
@@ -26,7 +25,6 @@ X = count_vectorizer.fit_transform(data)
 # apply tf-idf
 tfidf_transformer = TfidfTransformer()
 X = tfidf_transformer.fit_transform(X)
-
 
 # grid of parameters for optimization search
 alpha_opt = np.arange(0.05,1.01,0.05)
