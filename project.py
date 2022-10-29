@@ -1,21 +1,32 @@
 import numpy as np
 import re
+import nltk
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
 from sklearn.model_selection import GridSearchCV
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score
-import nltk
-nltk.download('stopwords')
+from nltk.stem import PorterStemmer
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
+
+nltk.download('stopwords', quiet=True)
+nltk.download('wordnet', quiet=True)
+nltk.download('omw-1.4', quiet=True)
+
 
 data_path="data/train.txt"
 labels = ["Poor", "Unsatisfactory", "Good", "VeryGood", "Excellent"]
 
 def pre_process(sentence):
+  # ps = PorterStemmer() #stemming
+  lemmatizer = WordNetLemmatizer()
   # remove line feed and tab characters
-  output = re.sub(r'[\n\t]', '', sentence)
+  inter = re.sub(r'[\n\t]', '', sentence)
+  # output = ps.stem(inter)
+  output = lemmatizer.lemmatize(inter)
 
   return output
 
@@ -24,6 +35,13 @@ with open(data_path) as f:
 
 data = [pre_process(line.split('=')[2]) for line in raw_data]
 target = [labels.index(line.split('=')[1]) for line in raw_data]
+
+# # covert strings to numerical feature vectors (bag of words)
+# count_vectorizer = CountVectorizer()
+# X = count_vectorizer.fit_transform(data)
+# # apply tf-idf
+# tfidf_transformer = TfidfTransformer()
+# X = tfidf_transformer.fit_transform(X)
 
 # pipeline of transformers and estimator
 clf_pipe = Pipeline([
