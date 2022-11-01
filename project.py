@@ -1,32 +1,66 @@
 import numpy as np
-import re
-import nltk
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
-from sklearn.model_selection import GridSearchCV
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.pipeline import Pipeline
+import re, string
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import FunctionTransformer
+from sklearn.naive_bayes import GaussianNB, MultinomialNB
 from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import cross_val_score
-from nltk.stem import PorterStemmer
+from sklearn.svm import LinearSVC
+from sklearn.ensemble import VotingClassifier
+
+import nltk
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
-nltk.download('stopwords')
 from nltk.corpus import stopwords
+from nltk.corpus import wordnet
 
-nltk.download('wordnet')
-nltk.download('omw-1.4')
+nltk.download('stopwords', quiet=True)
+nltk.download('wordnet', quiet=True)
+nltk.download('omw-1.4', quiet=True)
+nltk.download('punkt', quiet=True)
+nltk.download('averaged_perceptron_tagger', quiet=True)
 
 
 data_path="data/train.txt"
 labels = ["Poor", "Unsatisfactory", "Good", "VeryGood", "Excellent"]
 
+wl = WordNetLemmatizer()
+
+def get_wordnet_pos(tag):
+    if tag.startswith('J'):
+        return wordnet.ADJ
+    elif tag.startswith('V'):
+        return wordnet.VERB
+    elif tag.startswith('N'):
+        return wordnet.NOUN
+    elif tag.startswith('R'):
+        return wordnet.ADV
+    else:
+        return wordnet.NOUN
+
+# Tokenize the sentence
+def lemmatizer(sentence):
+    word_pos_tags = nltk.pos_tag(word_tokenize(sentence))
+    a=[wl.lemmatize(tag[0], get_wordnet_pos(tag[1])) for idx, tag in enumerate(word_pos_tags)]
+    return " ".join(a)
+
 def pre_process(sentence):
-  # ps = PorterStemmer() #stemming
-  lemmatizer = WordNetLemmatizer()
+  #sentence = sentence.lower() 
+  #sentence=sentence.strip()  
+  #sentence=re.compile('<.*?>').sub('', sentence) 
+  sentence = re.compile('[%s]' % re.escape(string.punctuation)).sub(' ', sentence)  
+  #sentence = re.sub('\s+', ' ', sentence)  
+  #sentence = re.sub(r'\[[0-9]*\]',' ',sentence) 
+  sentence=re.sub(r'[^\w\s]', '', str(sentence).lower().strip())
+  sentence = re.sub(r'\d',' ',sentence) 
+  #sentence = re.sub(r'\s+',' ',sentence) 
   # remove line feed and tab characters
-  inter = re.sub(r'[\n\t]', '', sentence)
-  # output = ps.stem(inter)
-  output = lemmatizer.lemmatize(inter)
+  #sentence = re.sub(r'[\n\t]', '', sentence)
+
+  output = lemmatizer(sentence)
 
   return output
 
@@ -36,50 +70,46 @@ with open(data_path) as f:
 data = [pre_process(line.split('=')[2]) for line in raw_data]
 target = [labels.index(line.split('=')[1]) for line in raw_data]
 
-# # covert strings to numerical feature vectors (bag of words)
-# count_vectorizer = CountVectorizer()
-# X = count_vectorizer.fit_transform(data)
-# # apply tf-idf
-# tfidf_transformer = TfidfTransformer()
-# X = tfidf_transformer.fit_transform(X)
+#classifiers
+mnb = MultinomialNB(
+    fit_prior=False, # use a uniform prior
+    alpha = 0.75 # additive smoothing parameter
+)
+gnb = GaussianNB(
+  var_smoothing=0.08
+)
+lr =  LogisticRegression(
+  C=2,
+  max_iter=110
+)
+svc = LinearSVC(
+  class_weight='balanced', 
+  C=0.39
+)
+
 # pipeline of transformers and estimator
 clf_pipe = Pipeline([
   ('tfidf', TfidfVectorizer( # covert strings to numerical feature vectors (tf-idf)
     use_idf=False, # idf(t) = 1
-    ngram_range=(1,4), # extracts up to 4-grams
     lowercase=True,
   )), 
-  ('clf', MultinomialNB(
-    fit_prior=False, # use a uniform prior
-    alpha = 0.75 # additive smoothing parameter
+  ('toarray', FunctionTransformer(
+    lambda x: x.toarray(), accept_sparse=True
   )),
-  # ('clf', LogisticRegression()),
+  ('vc', VotingClassifier(
+    estimators=[
+      ('mnb', mnb), 
+      ('gnb', gnb), 
+      ('lr', lr), 
+      ('svc', svc)
+    ], 
+    voting='hard'
+  ))
 ])
-
-# # grid of parameters for optimization search
-# alpha_opt = np.arange(0.05,1.01,0.05)
-# grid = {
-#   "alpha": alpha_opt,
-#   "fit_prior": [True, False]
-# }
-
-# # grid search for best parameters
-# clf_gs = GridSearchCV(estimator=MultinomialNB(), param_grid=grid, cv= 5)
-
-# # train classifier
-# clf = clf_gs.fit(X, target)
-# print(clf.best_score_)
-
-# split data into train and test datasets
-# X_train, X_test, y_train, y_test = train_test_split(X, target, test_size=0.2, random_state=0)
-
-# clf = clf_gs.fit(X_train, y_train)
-# inf = clf.predict(X_test)
-# report = classification_report(inf, y_test)
-# print(report)
 
 # train classifier
 clf = clf_pipe.fit(data, target)
+
 # get cross validation scores
-scores = cross_val_score(clf_pipe, data, target, cv=5)
+scores = cross_val_score(clf, data, target, cv=5)
 print(scores, np.mean(scores))
