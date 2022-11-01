@@ -22,7 +22,9 @@ nltk.download('wordnet', quiet=True)
 nltk.download('omw-1.4', quiet=True)
 
 
-data_path="data/train.txt"
+train_path="data/train.txt"
+test_path="data/test.txt"
+output_path="results.txt"
 labels = ["Poor", "Unsatisfactory", "Good", "VeryGood", "Excellent"]
 
 def pre_process(sentence):
@@ -35,19 +37,20 @@ def pre_process(sentence):
 
   return output
 
-with open(data_path) as f:
-    raw_data = f.readlines()
+with open(train_path) as f:
+    train_data = f.readlines()
 
-data = [pre_process(line.split('=')[2]) for line in raw_data]
-target = [labels.index(line.split('=')[1]) for line in raw_data]
+with open(test_path) as f:
+    test_data = f.readlines()
+
+X_train = [pre_process(line.split('=')[2]) for line in train_data]
+y_train = [labels.index(line.split('=')[1]) for line in train_data]
+X_test = [pre_process(line) for line in test_data]
 
 #classifiers
 mnb = MultinomialNB(
     fit_prior=False, # use a uniform prior
     alpha = 0.75 # additive smoothing parameter
-)
-gnb = GaussianNB(
-  var_smoothing=0.08
 )
 lr =  LogisticRegression(
   C=2,
@@ -62,6 +65,7 @@ svc = LinearSVC(
 clf_pipe = Pipeline([
   ('tfidf', TfidfVectorizer( # covert strings to numerical feature vectors (tf-idf)
     use_idf=False, # idf(t) = 1
+    ngram_range=(1,4), # extracts up to 4-grams
     lowercase=True,
   )), 
   ('toarray', FunctionTransformer(
@@ -70,7 +74,6 @@ clf_pipe = Pipeline([
   ('vc', VotingClassifier(
     estimators=[
       ('mnb', mnb), 
-      ('gnb', gnb), 
       ('lr', lr), 
       ('svc', svc)
     ], 
@@ -79,8 +82,13 @@ clf_pipe = Pipeline([
 ])
 
 # train classifier
-clf = clf_pipe.fit(data, target)
+clf = clf_pipe.fit(X_train, y_train)
 
 # get cross validation scores
-scores = cross_val_score(clf, data, target, cv=5)
-print(scores, np.mean(scores))
+scores = cross_val_score(clf_pipe, X_train, y_train, cv=5)
+print("Cross Validation Scores:", scores, np.mean(scores))
+
+pred = clf_pipe.predict(test_data)
+with open(output_path, "w") as f:
+  for p in pred:
+    f.write(f'={labels[p]}=\n')

@@ -1,0 +1,10 @@
+=VeryGood=
+=Unsatisfactory=
+=VeryGood=
+=Excellent=
+=Unsatisfactory=
+=Poor=
+=VeryGood=
+=Excellent=
+=VeryGood=
+=VeryGood=

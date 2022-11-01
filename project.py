@@ -2,8 +2,6 @@ import numpy as np
 import re
 
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.naive_bayes import GaussianNB, MultinomialNB
 from sklearn.linear_model import LogisticRegression
@@ -21,7 +19,9 @@ nltk.download('stopwords', quiet=True)
 nltk.download('wordnet', quiet=True)
 nltk.download('omw-1.4', quiet=True)
 
-data_path="data/train.txt"
+train_path="data/train.txt"
+test_path="data/test.txt"
+output_path="results.txt"
 labels = ["Poor", "Unsatisfactory", "Good", "VeryGood", "Excellent"]
 
 def pre_process(sentence):
@@ -34,13 +34,15 @@ def pre_process(sentence):
 
   return output
 
-with open(data_path) as f:
-    raw_data = f.readlines()
+with open(train_path) as f:
+    train_data = f.readlines()
 
-data = [pre_process(line.split('=')[2]) for line in raw_data]
-target = [labels.index(line.split('=')[1]) for line in raw_data]
+with open(test_path) as f:
+    test_data = f.readlines()
 
-X_train,X_test,y_train,y_test=train_test_split(data, target, test_size=0.2)
+X_train = [pre_process(line.split('=')[2]) for line in train_data]
+y_train = [labels.index(line.split('=')[1]) for line in train_data]
+X_test = [pre_process(line) for line in test_data]
 
 #classifiers
 mnb = MultinomialNB(
@@ -69,19 +71,20 @@ clf_pipe = Pipeline([
   ('toarray', FunctionTransformer(
     lambda x: x.toarray(), accept_sparse=True
   )),
-  ('clf', mnb)
+  ('clf', lr)
 ])
 
 # train classifier
 clf = clf_pipe.fit(X_train, y_train)
 
-prediction = clf.predict(X_test)
-
-print("Testing Accuracy Score:",accuracy_score(y_test, prediction))
-
 # get cross validation scores
-scores = cross_val_score(clf, data, target, cv=5)
+scores = cross_val_score(clf_pipe, X_train, y_train, cv=5)
 print("Cross Validation Scores:", scores, np.mean(scores))
+
+pred = clf_pipe.predict(test_data)
+with open(output_path, "w") as f:
+  for p in pred:
+    f.write(f'={labels[p]}=\n')
 
 """
 # grid of parameters for optimization search
