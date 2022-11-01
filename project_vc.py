@@ -75,7 +75,7 @@ clf_pipe = Pipeline([
     estimators=[
       ('mnb', mnb), 
       ('lr', lr), 
-      ('svc', svc)
+      # ('svc', svc)
     ], 
     voting='hard'
   ))

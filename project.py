@@ -65,13 +65,13 @@ svc = LinearSVC(
 clf_pipe = Pipeline([
   ('tfidf', TfidfVectorizer( # covert strings to numerical feature vectors (tf-idf)
     use_idf=False, # idf(t) = 1
-    ngram_range=(1,4), # extracts up to 4-grams
+    # ngram_range=(1,4), # extracts up to 4-grams
     lowercase=True,
   )),    
   ('toarray', FunctionTransformer(
     lambda x: x.toarray(), accept_sparse=True
   )),
-  ('clf', lr)
+  ('clf', gnb)
 ])
 
 # train classifier
