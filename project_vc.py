@@ -1,9 +1,9 @@
 import numpy as np
-import re
+import re, string
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import FunctionTransformer
-from sklearn.naive_bayes import GaussianNB, MultinomialNB
+from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
@@ -12,28 +12,53 @@ from sklearn.svm import LinearSVC
 from sklearn.ensemble import VotingClassifier
 
 import nltk
-from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
-from nltk.corpus import stopwords
+from nltk.corpus import wordnet
 
-nltk.download('stopwords', quiet=True)
+nltk.download('punkt', quiet=True)
 nltk.download('wordnet', quiet=True)
-nltk.download('omw-1.4', quiet=True)
-
+nltk.download('averaged_perceptron_tagger', quiet=True)
 
 train_path="data/train.txt"
 test_path="data/test.txt"
 output_path="results.txt"
 labels = ["Poor", "Unsatisfactory", "Good", "VeryGood", "Excellent"]
 
+wl = WordNetLemmatizer()
+
+def get_wordnet_pos(tag):
+    if tag.startswith('J'):
+        return wordnet.ADJ
+    elif tag.startswith('V'):
+        return wordnet.VERB
+    elif tag.startswith('N'):
+        return wordnet.NOUN
+    elif tag.startswith('R'):
+        return wordnet.ADV
+    else:
+        return wordnet.NOUN
+
+# Tokenize the sentence
+def lemmatizer(sentence):
+    word_pos_tags = nltk.pos_tag(word_tokenize(sentence))
+    a=[wl.lemmatize(tag[0], get_wordnet_pos(tag[1])) for idx, tag in enumerate(word_pos_tags)]
+    return " ".join(a)
+
 def pre_process(sentence):
-  # ps = PorterStemmer() #stemming
-  # lemmatizer = WordNetLemmatizer()
+  #sentence = sentence.lower() 
+  #sentence=sentence.strip()
+  #sentence=re.compile('<.?>').sub('', sentence) 
+  sentence = re.compile('[%s]' % re.escape(string.punctuation)).sub(' ', sentence)
+  #sentence = re.sub('\s+', ' ', sentence)
+  #sentence = re.sub(r'[[0-9]]',' ',sentence) 
+  sentence=re.sub(r'[^\w\s]', '', str(sentence).lower().strip())
+  sentence = re.sub(r'\d',' ',sentence) 
+  #sentence = re.sub(r'\s+',' ',sentence) 
   # remove line feed and tab characters
-  output = re.sub(r'[\n\t]', '', sentence)
-  # output = ps.stem(output)
-  # output = lemmatizer.lemmatize(output)
+  #sentence = re.sub(r'[\n\t]', '', sentence)
+
+  output = lemmatizer(sentence)
 
   return output
 
@@ -56,10 +81,6 @@ lr =  LogisticRegression(
   C=2,
   max_iter=110
 )
-svc = LinearSVC(
-  class_weight='balanced', 
-  C=0.39
-)
 
 # pipeline of transformers and estimator
 clf_pipe = Pipeline([
@@ -75,7 +96,6 @@ clf_pipe = Pipeline([
     estimators=[
       ('mnb', mnb), 
       ('lr', lr), 
-      # ('svc', svc)
     ], 
     voting='hard'
   ))
