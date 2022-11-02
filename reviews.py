@@ -37,17 +37,11 @@ def lemmatizer(sentence):
   return " ".join(a)
 
 def pre_process(sentence):
-  #sentence = sentence.lower() 
-  #sentence=sentence.strip()
-  #sentence=re.compile('<.?>').sub('', sentence) 
   sentence = re.compile('[%s]' % re.escape(string.punctuation)).sub(' ', sentence)
-  #sentence = re.sub('\s+', ' ', sentence)
-  #sentence = re.sub(r'[[0-9]]',' ',sentence) 
   sentence=re.sub(r'[^\w\s]', '', str(sentence).lower().strip())
   sentence = re.sub(r'\d',' ',sentence) 
-  #sentence = re.sub(r'\s+',' ',sentence) 
   # remove line feed and tab characters
-  #sentence = re.sub(r'[\n\t]', '', sentence)
+  sentence = re.sub(r'[\n\t]', '', sentence)
 
   output = lemmatizer(sentence)
 
